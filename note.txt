@@ -1,0 +1,179 @@
+General Purpoes CPU
+	- Von neuman 
+	- 32 bit?
+
+Registers: 32
+	- Stack
+	- Return
+	- zero
+
+MMU -> struct? array?
+	read -> function
+
+register file -> struct
+
+ALU -> function ( x, y, opglags)
+
+Control Unit -> function
+
+
+Struct Memory:
+	- RAM 
+	- max size 
+
+
+struct BUS:
+	- read/write 
+	- bus in 
+	- bus out
+
+func update_bus 
+
+
+
+struct ALU:
+	- In 1 
+	- in 2 
+	- in flags 
+	- out 
+func update_ALU
+
+
+
+
+Struct RegisterFile:
+	- Registers
+	- Register Count
+	- in 
+	- out 1 
+	- out 2 
+func update_reg_file
+
+
+
+
+Pipeline
+--------
+Fetch/Decode -> set flags for next iteration
+Exec
+
+
+
+Write Back? if no write back, exec will update registerfile
+
+
+Fetch/Decode 
+	- set output for CPU and 
+
+
+
+
+
+
+
+
+
+
+Add sub mult shiftl shiftr slt 
+^ but imm
+beq
+bne
+blt
+bge
+
+jal
+jalr
+
+load/save
+lw 
+sw
+
+12 arithmetic instr
+
+
+2 mem instr
+4 branch instr
+2 jump instr
+
+20 instruction -> 5 bit opcode 
+
+Instructions
+	- Add dest, src1, src2
+	- Addi dest, src1, imm
+	- negate?
+	- sub
+	- sub i 
+	- mul 
+	- mul i
+	- branch
+	- branch ne
+	- branch eq
+	- branch gt 
+	- branch lte
+	- cmp
+	- and
+	- or
+	- xor
+	- slt 
+	- lw
+	- sw
+	- jal - function call
+	- jalr - function call from reg
+
+
+
+
+
+
+
+32 registers 
+15 bits for registers
+5 bit opcode 
+
+
+
+Instruction Format
+[0 - 5 : opcode ] [ destination register] [src register 1] 
+[0 : Branch/ jump] [1: immediate ] []
+
+
+
+
+
+
+
+
+
+Special Regiters 
+	- return register 
+	- 
+
+Direct Addressing bit
+One Reserve Bit
+
+Direct Addressing Instructions
+Literal Instructions
+
+ASM Syntax 
+// -> comment
+.global
+.text -> code
+.data -> data
+
+Labels -> [/c+]:
+
+
+2 pass assembler
+	- first pass 
+		- create list of symbols used 
+	- second pass 
+		- determine where to store in memory
+
+
+
+
+
+Objects:
+	internal state, input output
+	clock_low -> take inputs, calculate next state
+	clock_high -> update output states
