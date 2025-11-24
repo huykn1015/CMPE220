@@ -66,10 +66,10 @@ class RAM(Memory):
         if addr > self._size:
             raise ValueError(f"Addres out of bounds. Addr: {addr}. Ram size: {self._size}")
         self._memory[addr] = value
-        # print('write', addr, self._memory)
+        print('write', addr, self._memory)
     
     def read_addr(self, addr: int) -> int:
-        # print('read', addr, self._memory)
+        print('read', addr, self._memory)
         if addr > self._size:
             raise ValueError(f"Addres out of bounds. Addr: {addr}. Ram size: {self._size}")
         return self._memory[addr]
@@ -119,7 +119,7 @@ class ProgramCounter:
             self._next_instruction = self.next_instruction + 1
         else:
             self._next_instruction = self.next_instruction + imm
-        print('pc', flags & Flags.BRANCH_FLAG.value, alu_out,)
+            print('imm', imm)
         print(f"next: {self._next_instruction}")
 
 
@@ -174,7 +174,6 @@ class CPU:
         # decode 
         flags, rd_addr, rs1_addr, rs2_addr, imm =  decode_instruction(instr)
         rs1, rs2 = self._reg_file.read_registers(rs1_addr, rs2_addr)
-        
         # execute 
 
         alu_out = alu(flags, rs1, rs2, imm)

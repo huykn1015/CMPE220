@@ -116,6 +116,7 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
     rd_addr = (instruction >> RD_OFFSET) & REGISTER_MASK
     rs1_addr = (instruction >> RS1_OFFSET) & REGISTER_MASK
     rs2_addr = (instruction >> RS2_OFFSET) & REGISTER_MASK
+    print(f"{instruction:32b}")
     imm = (instruction >> IMM_OFFSET) & IMM_MASK
     imm -= IMM_SIGN_BIT_MASK & (instruction >> IMM_OFFSET)
 

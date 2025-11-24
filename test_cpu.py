@@ -1,6 +1,6 @@
 from enum import Enum
-from cpu import RegisterFile, Bus, RAM, alu, ProgramCounter, CPU
-from instructions import decode_instruction, Flags
+from cpu import  Bus, RAM, CPU
+from instructions import Flags
 
 class InstructionsStrings(Enum):
     NO_OP = "00000_00"
@@ -32,118 +32,68 @@ class InstructionsStrings(Enum):
     JAL = "00000_01"
 
 
-def beq_r0_r0_2():
-    # skip next instruction
-    opcode = InstructionsStrings.BEQ.value
-    rs1 = "000000"
-    rs2 = "000000"
-    imm_src = "0010"
 
-    instr = int(f"{imm_src}{rs2}{rs1}{opcode}".replace('_', ''), 2)
+def r_type(instr_: InstructionsStrings, rd:int, rs1: int, rs2: int) -> int:
+    opcode: str = instr_.value
+    instr = int(f"{rs2:06b}{rs1:06b}{rd:06b}{opcode}".replace('_', ''), 2)
     return instr
 
 
-def beq_r0_r0_p1():
-    # skip next instruction
-    opcode = InstructionsStrings.BEQ.value
-    rs1 = "000000"
-    rs2 = "000000"
-    imm_src = "1111_1111_111" # -2
-
-    instr = int(f"{imm_src}{rs2}{rs1}{opcode}".replace('_', ''), 2)
+def i_type(instr_: InstructionsStrings, rd:int, rs1: int, imm:int) -> int: # increment r1
+    opcode = instr_.value
+    print(f"imm: {(imm & (1 << 11)) - 1:11b}")
+    instr = int(f"{imm & 0x7FF:11b}{rs1:06b}{rd:06b}{opcode}".replace('_', ''), 2)
     return instr
 
-def beq_r0_r1_p1():
-    # skip next instruction
-    opcode = InstructionsStrings.BEQ.value
-    rs1 = "000000"
-    rs2 = "000001"
-    imm_src = "1111_1111_111" # -2
-
-    instr = int(f"{imm_src}{rs2}{rs1}{opcode}".replace('_', ''), 2)
+def b_type(instr_: InstructionsStrings, rs1: int, rs2: int, imm: int) -> int:
+    print(f"imm: {(imm & (1 << 11)) - 1:11b}")
+    opcode = instr_.value
+    instr = int(f"{imm & 0x7FF:11b}{rs2:06b}{rs1:06b}{opcode}".replace('_', ''), 2)
     return instr
 
-def bne_r0_r1_p1():
-    # skip next instruction
-    opcode = InstructionsStrings.BNE.value
-    rs1 = "000000"
-    rs2 = "000000"
-    imm_src = "1111_1111_111" # -2
-
-    instr = int(f"{imm_src}{rs2}{rs1}{opcode}".replace('_', ''), 2)
-    return instr
-
-def sub_r1_r2_r3():
-    opcode = InstructionsStrings.SUB.value
-    rd = "000001"
-    rs1 = "000010"
-    rs2 = "000011"
-    instr = int(f"{rs2}{rs1}{rd}{opcode}".replace('_', ''), 2)
-    return instr
-
-def subi_r1_r2_3(): # increment r1
-    opcode = InstructionsStrings.SUBI.value
-    rd = "000001"
-    rs1 = "000010"
-    imm_src = "10"
-
-    instr = int(f"{imm_src}{rs1}{rd}{opcode}".replace('_', ''), 2)
-    return instr
-
-def add_r1_r2_r3():
-    opcode = InstructionsStrings.ADD.value
-    rd = "000001"
-    rs1 = "000010"
-    rs2 = "000011"
-    instr = int(f"{rs2}{rs1}{rd}{opcode}".replace('_', ''), 2)
-    return instr
-
-
-def add_r1_r3_r3():
-    opcode = InstructionsStrings.ADD.value
-    rd = "000001"
-    rs1 = "000011"
-    rs2 = "000011"
-    instr = int(f"{rs2}{rs1}{rd}{opcode}".replace('_', ''), 2)
-    return instr
-
-
-def addi_r1_r1_1(): # increment r1
-    opcode = InstructionsStrings.ADDI.value
-    rd = "000001"
-    rs1 = "000001"
-    imm_src = "1"
-
-    instr = int(f"{imm_src}{rs1}{rd}{opcode}".replace('_', ''), 2)
-    return instr
-
-
-def sw_r0_r2_10():
+def sw(rs1: int, rs2: int, imm: int) -> int:
+    print(f"imm: {(imm & (1 << 11)) - 1:11b}")
     opcode = InstructionsStrings.SW.value
-    rs1 = "000000"
-    rs2 = "000010"
-    imm_src = "1010"
-
-    instr = int(f"{imm_src}{rs2}{rs1}{opcode}".replace('_', ''), 2)
+    instr = int(f"{imm & 0x7FF:11b}{rs2:06b}{rs1:06b}{opcode}".replace('_', ''), 2)
     return instr
 
-
-def lw_r0_r2_10():
+def lw(rd: int, rs1: int, imm: int) -> int:
+    print(f"imm: {(imm & 0x7FF):11b}")
     opcode = InstructionsStrings.LW.value
-    rd = "000010"
-    rs1 = "000000"
-    imm_src = "1010"
-
-    instr = int(f"{imm_src}{rs1}{rd}{opcode}".replace('_', ''), 2)
+    instr = int(f"{imm & 0x7FF:11b}{rs1:06b}{rd:06b}{opcode}".replace('_', ''), 2)
     return instr
+
+def beq(rs1: int, rs2: int, imm: int) -> int:
+    print(f"imm: {(imm & (1 << 11)) - 1:11b}")
+    opcode = InstructionsStrings.BEQ.value
+    instr = int(f"{imm & 0x7FF:11b}{rs2:06b}{rs1:06b}{opcode}".replace('_', ''), 2)
+    return instr
+
+def bne(rs1: int, rs2: int, imm: int) -> int:
+    print(f"imm: {(imm & (1 << 11)) - 1:11b}")
+    opcode = InstructionsStrings.BNE.value
+    instr = int(f"{imm & 0x7FF:11b}{rs2:06b}{rs1:06b}{opcode}".replace('_', ''), 2)
+    return instr
+
+
+
+
+
+
+
+
+
+
 
 
 def test_add():
-    rd_int = 1
+    rd_addr = 1
+    rs1_addr = 2
     rs1_value = 4
+    rs2_addr = 3
     rs2_value = 5
 
-    instr = add_r1_r2_r3()
+    instr = r_type(InstructionsStrings.ADD, rd_addr, rs1_addr, rs2_addr)
 
     ram = RAM(10)
 
@@ -153,28 +103,22 @@ def test_add():
 
     cpu = CPU(num_registers=32, bus=bus)
 
-    
-    cpu.set_register(2, rs1_value)
-    cpu.set_register(3, rs2_value)
+    cpu.set_register(rs1_addr, rs1_value)
+    cpu.set_register(rs2_addr, rs2_value)
 
     cpu.cycle()
 
-    rd_value = cpu.read_register(rd_int)
+    rd_value = cpu.read_register(rd_addr)
     expected_rd_value = rs1_value + rs2_value
     assert rd_value == expected_rd_value
 
 
 def test_addi():
-    opcode = InstructionsStrings.ADDI.value
-    rd = "000001"
-    rs1 = "000010"
-    imm_src = "111"
-
-    rd_int = int(rd, 2)
-    rs1_int = int(rs1, 2)
-    imm_int = int(imm_src, 2)
+    rd_addr = 1
+    rs1_addr = 2
     rs1_value = 4
-    instr = int(f"{imm_src}{rs1}{rd}{opcode}".replace('_', ''), 2)
+    imm_value = 7
+    instr = i_type(InstructionsStrings.ADDI, rd_addr, rs1_addr, imm_value)
 
     ram = RAM(10)
 
@@ -184,24 +128,23 @@ def test_addi():
 
     cpu = CPU(num_registers=32, bus=bus)
 
-    
-    cpu.set_register(rs1_int, rs1_value)
+    cpu.set_register(rs1_addr, rs1_value)
 
     cpu.cycle()
 
-    rd_int = int(rd, 2)
-    rd_value = cpu.read_register(rd_int)
-    expected_rd_value = rs1_value + imm_int
+    rd_value = cpu.read_register(rd_addr)
+    expected_rd_value = rs1_value + imm_value
     assert rd_value == expected_rd_value
 
 
 def test_sub():
-    rd_int = 1
+    rd_addr = 1
+    rs1_addr = 2
     rs1_value = 4
+    rs2_addr = 3
     rs2_value = 5
 
-    instr = sub_r1_r2_r3()
-
+    instr = r_type(InstructionsStrings.SUB, rd_addr, rs1_addr, rs2_addr)
     ram = RAM(10)
 
     ram.write_addr(0, instr)
@@ -211,27 +154,25 @@ def test_sub():
     cpu = CPU(num_registers=32, bus=bus)
 
     
-    cpu.set_register(2, rs1_value)
-    cpu.set_register(3, rs2_value)
+    cpu.set_register(rs1_addr, rs1_value)
+    cpu.set_register(rs2_addr, rs2_value)
 
     cpu.cycle()
 
-    rd_value = cpu.read_register(rd_int)
+    rd_value = cpu.read_register(rd_addr)
     expected_rd_value = rs1_value - rs2_value
     assert rd_value == expected_rd_value
 
 
 def test_subi():
-    opcode = InstructionsStrings.SUBI.value
-    rd = "000001"
-    rs1 = "000010"
-    imm_src = "1111_1111_110" # -2
 
-    rd_int = 1
-    rs1_int = 2
-    imm_int = -2
+    
+    rd_addr = 1
+    rs1_addr = 2
     rs1_value = 4
-    instr = int(f"{imm_src}{rs1}{rd}{opcode}".replace('_', ''), 2)
+    imm_value = -2
+    instr = i_type(InstructionsStrings.SUBI, rd_addr, rs1_addr, imm_value)
+
 
     ram = RAM(10)
 
@@ -242,27 +183,22 @@ def test_subi():
     cpu = CPU(num_registers=32, bus=bus)
 
     
-    cpu.set_register(rs1_int, rs1_value)
+    cpu.set_register(rs1_addr, rs1_value)
 
     cpu.cycle()
 
-    rd_int = int(rd, 2)
-    rd_value = cpu.read_register(rd_int)
-    expected_rd_value = rs1_value - imm_int
+    rd_value = cpu.read_register(rd_addr)
+    expected_rd_value = rs1_value - imm_value
     assert rd_value == expected_rd_value
 
 
 def test_addi_negative():
-    opcode = InstructionsStrings.ADDI.value
-    rd = "000001"
-    rs1 = "000010"
-    imm_src = "1111_1111_110" # -2
-
-    rd_int = int(rd, 2)
-    rs1_int = int(rs1, 2)
-    imm_int = -2
+    rd_addr = 1 
+    rs1_addr = 1 
     rs1_value = 4
-    instr = int(f"{imm_src}{rs1}{rd}{opcode}".replace('_', ''), 2)
+    imm_value = -2
+
+    instr = i_type(InstructionsStrings.ADDI, rd_addr, rs1_addr, imm_value)
 
     ram = RAM(10)
 
@@ -273,21 +209,20 @@ def test_addi_negative():
     cpu = CPU(num_registers=32, bus=bus)
 
     
-    cpu.set_register(rs1_int, rs1_value)
+    cpu.set_register(rs1_addr, rs1_value)
 
     cpu.cycle()
 
-    rd_int = int(rd, 2)
-    rd_value = cpu.read_register(rd_int)
-    expected_rd_value = rs1_value + imm_int
+    rd_value = cpu.read_register(rd_addr)
+    expected_rd_value = rs1_value + imm_value
     assert rd_value == expected_rd_value
 
 
 def test_beq():
 
-    instr_0 = beq_r0_r0_2()
-    instr_1 = add_r1_r2_r3()
-    instr_2 = add_r1_r3_r3()
+    instr_0 = b_type(InstructionsStrings.BEQ, 0, 0, 2) # skip next instr
+    instr_1 = r_type(InstructionsStrings.ADD, 1, 2, 3) # r1 = r2 + r3
+    instr_2 = r_type(InstructionsStrings.ADD, 1, 3, 3) # r1 = r3 + r3
 
     ram = RAM(10)
 
@@ -317,8 +252,8 @@ def test_beq():
 
 def test_beq_loop():
 
-    instr_0 = addi_r1_r1_1()
-    instr_1 = beq_r0_r0_p1()
+    instr_0 = i_type(InstructionsStrings.ADDI, 1, 1, 1)
+    instr_1 = b_type(InstructionsStrings.BEQ, 0, 0, -1)
 
     ram = RAM(10)
 
@@ -348,8 +283,9 @@ def test_beq_loop():
 
 def test_beq_no_loop():
 
-    instr_0 = addi_r1_r1_1()
-    instr_1 = beq_r0_r1_p1()
+    instr_0 = i_type(InstructionsStrings.ADDI, 1, 1, 1)
+    # instr_1 = beq_r0_r1_p1()
+    instr_1 = b_type(InstructionsStrings.BEQ, 0, 1, -1)
 
     ram = RAM(10)
 
@@ -380,8 +316,8 @@ def test_beq_no_loop():
 
 def test_bne_loop():
 
-    instr_0 = addi_r1_r1_1()
-    instr_1 = bne_r0_r1_p1()
+    instr_0 = i_type(InstructionsStrings.ADDI, 1, 1, 1)
+    instr_1 = b_type(InstructionsStrings.BNE, 0, 1, -1)
 
     ram = RAM(10)
 
@@ -406,12 +342,12 @@ def test_bne_loop():
 
     rd = 1
     rd_value = cpu.read_register(rd)
-    expected_rd_value = r1_value + 1
+    expected_rd_value = r1_value + 2
     assert rd_value == expected_rd_value
 
 
 def test_sw():
-    instr = sw_r0_r2_10()
+    instr = sw(0, 2, 10)
 
     ram = RAM(11)
 
@@ -432,7 +368,7 @@ def test_sw():
 
 
 def test_lw():
-    instr = lw_r0_r2_10()
+    instr = lw(2, 0, 10)
 
     ram = RAM(11)
 
