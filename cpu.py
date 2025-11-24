@@ -1,19 +1,6 @@
-from enum import Enum
 from abc import ABC, abstractmethod
-import struct
 
 from instructions import decode_instruction, Flags
-
-
-
-
-
-OPCODE_OFFSET = 0
-RD_OFFSET = 0
-RS1_OFFSET = 0 
-RS2_OFFSET = 0
-IMM_OFFSET = 0
-
 
 
 
@@ -79,8 +66,10 @@ class RAM(Memory):
         if addr > self._size:
             raise ValueError(f"Addres out of bounds. Addr: {addr}. Ram size: {self._size}")
         self._memory[addr] = value
+        # print('write', addr, self._memory)
     
     def read_addr(self, addr: int) -> int:
+        # print('read', addr, self._memory)
         if addr > self._size:
             raise ValueError(f"Addres out of bounds. Addr: {addr}. Ram size: {self._size}")
         return self._memory[addr]
@@ -125,10 +114,13 @@ class ProgramCounter:
     def next_instruction(self):
         return self._next_instruction
     def set_next_instruction(self, alu_out: int, imm: int, flags: int):
-        if (flags & Flags.BRANCH_FLAG.value) <= 0 and alu_out <= 0:
+        print(f"cur: {self._next_instruction}")
+        if ((flags & Flags.BRANCH_FLAG.value) <= 0) or (alu_out <= 0):
             self._next_instruction = self.next_instruction + 1
         else:
             self._next_instruction = self.next_instruction + imm
+        print('pc', flags & Flags.BRANCH_FLAG.value, alu_out,)
+        print(f"next: {self._next_instruction}")
 
 
 
@@ -162,37 +154,6 @@ def alu(flags: int, rs1: int, rs2: int, imm: int):
     return rd
 
 
-
-def test_add():
-    reg_file = RegisterFile(num_register=32)
-
-    pc = ProgramCounter(starting_addr=0)
-
-    ram = RAM(10)
-
-    bus = Bus(ram, None, None)
-
-
-
-    instr = bus.read_addr(pc.next_instruction)
-
-    # decode 
-    flags, rd_addr, rs1_addr, rs2_addr, imm =  decode_instruction(instr)
-    rs1, rs2 = reg_file.read_registers(rs1_addr, rs2_addr)
-    
-    # execute 
-
-    alu_out = alu(flags, rs1, rs2, imm)
-
-    # mem 
-
-    bus_out = bus.read_addr(alu_out)
-    bus.write_addr(alu_out, rs2, flags)
-
-    # write back
-    reg_file.update_register(rd_addr, alu_out, bus_out, flags)
-    pc.set_next_instruction(alu_out, imm, flags)
-
 class CPU:
     def __init__(self, num_registers: int, bus: Bus):
         self._reg_file: RegisterFile = RegisterFile(num_registers)
@@ -207,7 +168,7 @@ class CPU:
         return self._reg_file.read_register(register_number)
 
     def cycle(self):
-        print(self._pc.next_instruction)
+        # print(self._pc.next_instruction)
         instr = self._bus.read_addr(self._pc.next_instruction)
 
         # decode 
