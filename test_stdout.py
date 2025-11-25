@@ -1,5 +1,5 @@
 from enum import Enum
-from cpu import  Bus, RAM, CPU, STDOut
+from cpu import  Bus, RAM, CPU, STDOut, CPUClocked
 from instructions import Flags
 
 
@@ -93,7 +93,9 @@ if __name__ == '__main__':
     bus = Bus(ram, MAX_RAM_ADDR, std_out)
 
     expected_mem_value = 2
-    cpu = CPU(num_registers=32, bus=bus)
+    cpu = CPUClocked(num_registers=32, bus=bus)
     while True:
-        cpu.cycle()
+        z = cpu.cycle()
+        if z == -1:
+            break
 

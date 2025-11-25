@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-
+from enum import Enum
 from instructions import decode_instruction, Flags
 
 
@@ -31,7 +31,8 @@ class RegisterFile:
         write_value = bus_out if flags & Flags.MEM_READ_FLAG.value > 0 else alu_out
         self.write_register(write_addr, write_value)
 
-
+    def dump_regs(self):
+        return self._registers[:]
 
 class Memory(ABC):
     @abstractmethod
@@ -206,5 +207,88 @@ class CPU:
         self._pc.set_next_instruction(alu_out, imm, flags)
 
 
+class CPUStates(Enum):
+    STOPPED = -1
+    FETCH = 0
+    DECODE = 1 
+    EXECUTE = 2 
+    MEM = 3 
+    WB = 4
 
 
+class CPUClocked:
+    def __init__(self, num_registers: int, bus: Bus):
+        self._reg_file: RegisterFile = RegisterFile(num_registers)
+        self._pc: ProgramCounter = ProgramCounter(0)
+        self._bus: Bus = bus
+        self._state: CPUStates = CPUStates.FETCH
+
+        self._instr: int = 0
+        self._flags: int = 0
+        self._rd_addr: int = 0
+        self._rs1_addr: int = 0
+        self._rs2_addr: int = 0
+        self._imm: int = 0
+        self._rs1 : int= 0 
+        self._rs2: int = 0
+        self._alu_out: int = 0
+        self._bus_out: int = 0
+
+
+
+
+    def dump_regs(self) -> list[int]:
+        return self._reg_file.dump_regs()
+
+    @property
+    def next_instruction(self) -> int:
+        return self._pc.next_instruction
+
+    @property
+    def cur_state(self) -> int:
+        return self._state.value
+
+    def set_register(self, register_number: int, value: int):
+        self._reg_file.write_register(register_number, value)
+
+    def read_register(self, register_number: int):
+        return self._reg_file.read_register(register_number)
+
+    def cycle(self) -> int:
+        # print(self._pc.next_instruction)
+        cur_state = self._state
+        match self._state:
+            case CPUStates.FETCH:
+                self._instr = self._bus.read_addr(self._pc.next_instruction)
+                self._state = CPUStates.DECODE
+        # decode 
+            case CPUStates.DECODE:
+                self._flags, self._rd_addr, self._rs1_addr, self._rs2_addr, self._imm =  decode_instruction(self._instr)
+                if self._flags == 0:
+                    print(">Reached End of Program")
+                    return CPUStates.STOPPED.value
+
+                self._rs1, self._rs2 = self._reg_file.read_registers(self._rs1_addr, self._rs2_addr)
+                self._state = CPUStates.EXECUTE
+        # execute 
+            case CPUStates.EXECUTE:
+                self._alu_out = alu(self._flags, self._rs1, self._rs2, self._imm)
+
+                self._state = CPUStates.MEM
+        # mem 
+            case CPUStates.MEM:
+                if self._flags & Flags.MEM_READ_FLAG.value > 0:
+                    self._bus_out = self._bus.read_addr(self._alu_out)
+                else:
+                    self._bus_out = 0
+                self._bus.write_addr(self._alu_out, self._rs2, self._flags)
+                self._state = CPUStates.WB
+
+        # write back
+            case CPUStates.WB:
+                self._reg_file.update_register(self._rd_addr, self._alu_out, self._bus_out, self._flags)
+                self._pc.set_next_instruction(self._alu_out, self._imm, self._flags)
+                self._state = CPUStates.FETCH
+            case _:
+                return CPUStates.STOPPED.value
+        return cur_state.value

@@ -181,3 +181,32 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
             # rs1 is where rd is normally
             rs1_addr = rd_addr
     return flags, rd_addr, rs1_addr, rs2_addr, imm
+
+
+def r_type(instr_: Instructions, rd:int, rs1: int, rs2: int) -> int:
+    opcode: int = instr_.value
+    instr = int(f"{rs2:06b}{rs1:06b}{rd:06b}{opcode:07b}".replace('_', ''), 2)
+    return instr
+
+
+def i_type(instr_: Instructions, rd:int, rs1: int, imm:int) -> int: # increment r1
+    opcode: int = instr_.value
+    instr = int(f"{imm & 0x7FF:11b}{rs1:06b}{rd:06b}{opcode:07b}".replace('_', ''), 2)
+    return instr
+
+def b_type(instr_: Instructions, rs1: int, rs2: int, imm: int) -> int:
+    opcode = instr_.value
+    instr = int(f"{imm & 0x7FF:11b}{rs2:06b}{rs1:06b}{opcode:07b}".replace('_', ''), 2)
+    return instr
+
+def sw(rs1: int, rs2: int, imm: int) -> int:
+    opcode = Instructions.SW.value
+    instr = int(f"{imm & 0x7FF:11b}{rs2:06b}{rs1:06b}{opcode:07b}".replace('_', ''), 2)
+    return instr
+
+def lw(rd: int, rs1: int, imm: int) -> int:
+    opcode = Instructions.LW.value
+    instr = int(f"{imm & 0x7FF:11b}{rs1:06b}{rd:06b}{opcode:07b}".replace('_', ''), 2)
+    return instr
+
+
