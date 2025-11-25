@@ -116,7 +116,6 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
     rd_addr = (instruction >> RD_OFFSET) & REGISTER_MASK
     rs1_addr = (instruction >> RS1_OFFSET) & REGISTER_MASK
     rs2_addr = (instruction >> RS2_OFFSET) & REGISTER_MASK
-    print(f"{instruction:32b}")
     imm = (instruction >> IMM_OFFSET) & IMM_MASK
     imm -= IMM_SIGN_BIT_MASK & (instruction >> IMM_OFFSET)
 
@@ -173,8 +172,7 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
             rs1_addr = 0 
             rs2_addr = 0 
         case _:
-            print(instr)
-            raise ValueError("")
+            flags = 0
 
     no_rd_instructions = [Instructions.SW, Instructions.BEQ, Instructions.BNE, Instructions.BGE, Instructions.BLT]
     if Instructions(opcode) in no_rd_instructions:
@@ -182,5 +180,4 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
             rs2_addr = rs1_addr
             # rs1 is where rd is normally
             rs1_addr = rd_addr
-
     return flags, rd_addr, rs1_addr, rs2_addr, imm

@@ -45,6 +45,22 @@ class Memory(ABC):
 
 
 
+class STDOut(Memory):
+    def __init__(self):
+        self._buffer: str = ""
+    
+    def read_addr(self, addr: int) -> int:
+        return 0
+    
+    def write_addr(self, addr: int, value: int) -> None:
+        if addr == 1:
+            print(f"STDOUT: {self._buffer}")
+            self._buffer = ""
+        else:
+            self._buffer = self._buffer + (chr(value))
+
+
+
 class RAM(Memory):
     def __init__(self, size: int):
         self._size = size
@@ -66,10 +82,10 @@ class RAM(Memory):
         if addr > self._size:
             raise ValueError(f"Addres out of bounds. Addr: {addr}. Ram size: {self._size}")
         self._memory[addr] = value
-        print('write', addr, self._memory)
+        # print('write', addr, self._memory)
     
     def read_addr(self, addr: int) -> int:
-        print('read', addr, self._memory)
+        # print('read', addr, self._memory)
         if addr > self._size:
             raise ValueError(f"Addres out of bounds. Addr: {addr}. Ram size: {self._size}")
         return self._memory[addr]
@@ -100,7 +116,7 @@ class Bus:
         if self._max_ram_addr is None:
             return self._ram.write_addr(addr, value)
 
-        if addr > self._max_ram_addr:
+        if addr >= self._max_ram_addr:
             if self._mmio is None:
                 raise ValueError("Address out of bounds")
             return self._mmio.write_addr(addr - self._max_ram_addr, value)
@@ -114,13 +130,10 @@ class ProgramCounter:
     def next_instruction(self):
         return self._next_instruction
     def set_next_instruction(self, alu_out: int, imm: int, flags: int):
-        print(f"cur: {self._next_instruction}")
         if ((flags & Flags.BRANCH_FLAG.value) <= 0) or (alu_out <= 0):
             self._next_instruction = self.next_instruction + 1
         else:
             self._next_instruction = self.next_instruction + imm
-            print('imm', imm)
-        print(f"next: {self._next_instruction}")
 
 
 
@@ -173,6 +186,9 @@ class CPU:
 
         # decode 
         flags, rd_addr, rs1_addr, rs2_addr, imm =  decode_instruction(instr)
+        if flags == 0:
+            print(">Reached End of Program")
+            exit()
         rs1, rs2 = self._reg_file.read_registers(rs1_addr, rs2_addr)
         # execute 
 

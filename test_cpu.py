@@ -346,6 +346,10 @@ def test_bne_loop():
     assert rd_value == expected_rd_value
 
 
+
+
+
+
 def test_sw():
     instr = sw(0, 2, 10)
 
@@ -358,6 +362,29 @@ def test_sw():
     cpu = CPU(num_registers=32, bus=bus)
 
     r2_value = 3
+    cpu.set_register(2, r2_value)
+
+    cpu.cycle() 
+
+    mem_value = bus.read_addr(10)
+    expected_mem_value = r2_value
+    assert mem_value == expected_mem_value
+
+
+
+def test_sw_2():
+    instr = sw(1, 2, 8)
+
+    ram = RAM(11)
+
+    ram.write_addr(0, instr)
+
+    bus = Bus(ram, None, None)
+
+    cpu = CPU(num_registers=32, bus=bus)
+    r1_value = 2
+    r2_value = 3
+    cpu.set_register(1, r1_value)
     cpu.set_register(2, r2_value)
 
     cpu.cycle() 
@@ -384,4 +411,20 @@ def test_lw():
     assert r2_value == expected_mem_value
 
 
+def test_lw_2():
+    instr = lw(2, 1, 8)
+
+    ram = RAM(11)
+
+    ram.write_addr(0, instr)
+
+    bus = Bus(ram, None, None)
+    expected_mem_value = 2
+    bus.write_addr(10, expected_mem_value, Flags.MEM_WRITE_FLAG.value)
+    cpu = CPU(num_registers=32, bus=bus)
+    r1_value = 2
+    cpu.set_register(1, r1_value)
+    cpu.cycle() # should be r2 = 2
+    r2_value = cpu.read_register(2)
+    assert r2_value == expected_mem_value
 
