@@ -28,19 +28,13 @@ def assembler_preprocess(lines: list[str]) -> list[str, list[str]]:
             line = line[:index]
         # remove extra spaces and newlines
         line = line.strip()
-        # identify label
-        index = line.find(":")
-        label = ""
-        if (index != -1):
-            label = line[:index].strip().upper()
-            if index == len(line)-1:
-                line = ""
-            else:
-                line = line[index+1:]
-        line_entries.append([
-            line,
-            [label] if label else []
-        ])
+        # identify labels
+        tokens = line.split(":")
+        labels = []
+        # last token is non-label instruction
+        for i in range(len(tokens) - 1):
+            labels.append(tokens[i].strip())
+        line_entries.append([tokens[-1], labels])
 
     if DEBUG_PRINT:
         print("raw line entries:")
@@ -213,7 +207,7 @@ if __name__ == "__main__":
     
     line_entries = assembler_preprocess(lines)
     # extract lines from first column of line_entries
-    # and setup a lookup that maps label to current line lumber
+    # and setup a lookup that maps label to current line number
     lines = []
     label_lookup: dict[str, int] = {}
     for i, (line, labels) in enumerate(line_entries):
