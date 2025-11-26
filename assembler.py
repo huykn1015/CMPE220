@@ -215,7 +215,9 @@ if __name__ == "__main__":
             label_lookup[label] = i
         lines.append(line)
 
-    print(label_lookup)
+    if DEBUG_PRINT:
+        print(f"label lookup: {label_lookup}\n")
+
     machine_codes = []
     for index, line in enumerate(lines):
         machine_codes.append(assembler_parse_line(index, line, label_lookup))
