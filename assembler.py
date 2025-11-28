@@ -36,6 +36,10 @@ def assembler_preprocess(lines: list[str]) -> list[str, list[str]]:
             labels.append(tokens[i].strip())
         line_entries.append([tokens[-1], labels])
 
+    # Add an extra NO_OP instruction at the very end to catch the end labels
+    #  (labels that are placed after the final instruction in the assembly code)
+    line_entries.append(["NO_OP", []])
+
     if DEBUG_PRINT:
         print("raw line entries:")
         for entry in line_entries:
@@ -93,7 +97,7 @@ def assembler_parse_line(index: int, line: str, label_lookup: dict[str, int]) ->
     if DEBUG_PRINT:
         print(f"Tokens: {list(tokens)}")
 
-    binary_strings = deque()
+    binary_strings: deque[str] = deque()
 
     # first token from left is always the instruction name
     instr_name = tokens.popleft().upper()
@@ -143,6 +147,8 @@ def assembler_parse_line(index: int, line: str, label_lookup: dict[str, int]) ->
         pad = (branch == 2) and 25 or 11
         binary_strings.appendleft(bin.rjust(pad, "1" if imm < 0 else "0"))
 
+    operand_names = ["opcode"]
+
     # NO_OP
     if instr_name == "NO_OP":
         pass
@@ -154,6 +160,7 @@ def assembler_parse_line(index: int, line: str, label_lookup: dict[str, int]) ->
         # need to swap imm and rs1 to comply with format
         d = binary_strings
         d[0], d[1] = d[1], d[0]
+        operand_names.extend(["rd", "rs1", "imm"])
     # SW
     elif instr_name == "SW":
         process_reg()  # rs1
@@ -162,27 +169,46 @@ def assembler_parse_line(index: int, line: str, label_lookup: dict[str, int]) ->
         # need to swap imm and rs2 to comply with format
         d = binary_strings
         d[0], d[1] = d[1], d[0]
+        operand_names.extend(["rs1", "rs2", "imm"])
     # JAL
     elif instr_name == "JAL":
         process_imm(2)  # imm
+        operand_names.extend(["imm"])
     # R-Type
     elif opcode_str[1:4] == "001":
         process_reg()  # rd
         process_reg()  # rs1
         process_reg()  # rs2
+        operand_names.extend(["rd", "rs1", "rs2"])
     # I-Type
     elif opcode_str[1:4] == "011":
         process_reg()  # rd
         process_reg()  # rs1
         process_imm()  # imm
+        operand_names.extend(["rd", "rs1", "imm"])
     # Branch
     elif opcode_str[1:4] == "110":
         process_reg()  # rs1
         process_reg()  # rs2
         process_imm(1)  # imm
+        operand_names.extend(["rs1", "rs2", "imm"])
 
     if DEBUG_PRINT:
-        print(f"Binary Strings: {list(binary_strings)}")
+        operand_names.reverse()
+        line1, line2 = "| ", "| "
+        for i, bin in enumerate(binary_strings):
+            name = operand_names[i]
+            max_width = max(len(bin), len(name))
+            line1 += name.rjust(max_width) + " | "
+            line2 += bin.rjust(max_width) + " | "
+        border = "-" * (len(line1) - 1)
+        print(border)
+        print(line1[:-1])
+        print(line2[:-1])
+        print(border)
+
+    # if DEBUG_PRINT:
+    #     print(f"Binary Strings: {list(binary_strings)}")
 
     result = "".join(binary_strings).zfill(32)
 
