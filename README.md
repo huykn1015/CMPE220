@@ -37,4 +37,9 @@ For branch operations and SW:
 
 For JAL:  
 >[0:6] — op code  
->[7:31] — immediate value  
+>[7:31] — immediate value
+
+## How to download and run the program  
+1. Clone this github repo and cd into its directory
+2. Assemble the respective program by running `python3 assembler.py Fibsq.asm Fibsq.bin` or `python3 assembler.py hello_world.asm hello_world.bin`
+3. Run the respective CPU emulator with `python3 test_fib.py` or `python3 test_hello.py`
