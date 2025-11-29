@@ -1,5 +1,3 @@
-
-
 START:
 	ADD  t0, zero, zero
 	ADDI t1, zero, 1         
@@ -18,4 +16,4 @@ LOOP:
 
 
 END:				#store final in t1
-	JAL END
+	NO_OP

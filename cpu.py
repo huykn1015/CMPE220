@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from instructions import decode_instruction, Flags
 
-
+DEBUG_CPU = True
 
 ZERO = 0
 STACK_POINTER_REGISTER = 30
@@ -74,9 +74,13 @@ class RAM(Memory):
                 chunk = f.read(4)
                 if len(chunk) < 4:
                     break
-                res.append(int.from_bytes(chunk, 'little'))
-        self._memory = res
-        self._size = len(res)
+                res.append(int.from_bytes(chunk, 'big'))
+
+        if len(res) > self._size:
+            raise ValueError(f"program too large for RAM (program = {len(res)}, ram = {self.size})")    
+
+        for i, word in enumerate(res):
+            self._memory[i] = word          
 
 
     def write_addr(self, addr: int, value: int) -> None:
@@ -257,6 +261,20 @@ class CPUClocked:
     def cycle(self) -> int:
         # print(self._pc.next_instruction)
         cur_state = self._state
+
+        if DEBUG_CPU:
+            print(f"\n[STATE = {self._state.name}] [PC = {self._pc.next_instruction}")
+            if self._instr != 0:
+                print(f" INSTR = 0x{self._instr:08X} ")
+
+            reg = self._reg_file.dump_regs()
+            t0, t1, t2 = reg[5], reg[6], reg[7]
+            print(f" t0 = {t0},  t1 = {t1}, t2 = {t2}")
+
+
+
+
+
         match self._state:
             case CPUStates.FETCH:
                 self._instr = self._bus.read_addr(self._pc.next_instruction)
