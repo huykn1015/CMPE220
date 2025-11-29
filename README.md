@@ -43,3 +43,6 @@ For JAL:
 1. Clone this github repo and cd into its directory
 2. Assemble the respective program by running `python3 assembler.py Fibsq.asm Fibsq.bin` or `python3 assembler.py hello_world.asm hello_world.bin`
 3. Run the respective CPU emulator with `python3 test_fib.py` or `python3 test_hello.py`
+
+## CPU Architecture Schematic
+![alt text](https://github.com/huykn1015/CMPE220/blob/main/misc/cpu.png)
