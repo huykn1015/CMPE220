@@ -264,7 +264,7 @@ class CPUClocked:
 
         if DEBUG_CPU:
             print(f"\n[STATE = {self._state.name}] [PC = {self._pc.next_instruction}")
-            if self._instr != 0:
+            if self._instr != 0 and self._state != CPUStates.FETCH:
                 print(f" INSTR = 0x{self._instr:08X} ")
 
             reg = self._reg_file.dump_regs()
