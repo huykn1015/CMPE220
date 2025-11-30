@@ -6,6 +6,7 @@ DEBUG_CPU = True
 
 ZERO = 0
 STACK_POINTER_REGISTER = 30
+PC_REGISTER = 29
 RETURN_ADDRESS_REGITSTER = 31
 
 
@@ -143,6 +144,10 @@ class ProgramCounter:
     @property
     def next_instruction(self):
         return self._next_instruction
+
+    def write_next_instruction(self, value: int):
+        self._next_instruction = value
+
     def set_next_instruction(self, alu_out: int, imm: int, flags: int):
         # incremements pc by imm if alu_out != 0, else inc pc
         if ((flags & Flags.BRANCH_FLAG.value) <= 0) or (alu_out <= 0):
@@ -321,8 +326,14 @@ class CPUClocked:
             # write back stage
             case CPUStates.WB:
                 # write back to registers if applicable and update pc
-                self._reg_file.update_register(self._rd_addr, self._alu_out, self._bus_out, self._flags)
-                self._pc.set_next_instruction(self._alu_out, self._imm, self._flags)
+                if self._rd_addr == PC_REGISTER and ((self._flags & Flags.BRANCH_FLAG.value) > 0):
+                    self._pc.write_next_instruction(self._reg_file.read_register(self._alu_out))
+                elif ((self._flags & Flags.JAL_FLAG.value) > 0):
+                    self._reg_file.write_register(RETURN_ADDRESS_REGITSTER, self._pc.next_instruction + 1)
+                    self._pc.set_next_instruction(self._alu_out, self._imm, self._flags)
+                else:
+                    self._reg_file.update_register(self._rd_addr, self._alu_out, self._bus_out, self._flags)
+                    self._pc.set_next_instruction(self._alu_out, self._imm, self._flags)
                 self._state = CPUStates.FETCH
             case _:
                 return CPUStates.STOPPED.value
