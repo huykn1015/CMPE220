@@ -9,8 +9,8 @@ STACK_POINTER_REGISTER = 30
 RETURN_ADDRESS_REGITSTER = 31
 
 
-
 class RegisterFile:
+    """Class representing a CPU's register file."""
     def __init__(self, num_register: int):
         self._registers: list[int] = [0] * num_register
 
@@ -47,24 +47,29 @@ class Memory(ABC):
 
 
 class STDOut(Memory):
+    """Class imitating a basic stdout mmio device"""
     def __init__(self):
         self._buffer: str = ""
     
     def read_addr(self, addr: int) -> int:
+        # reads are not allowed, so zero is always returned
         return 0
     
     def write_addr(self, addr: int, value: int) -> None:
+        # if any value is written to addr 1, buffer is flushed and printed to stdout
         if addr == 1:
             print(f"STDOUT: {self._buffer}")
             self._buffer = ""
         else:
+            # writes to any other address append to the buffer
             self._buffer = self._buffer + (chr(value))
 
 
 
 class RAM(Memory):
+    """Class representing Random Access Memory"""
     def __init__(self, size: int):
-        self._size = size
+        self._size: int = size
         self._memory: list[int] = [0] * size
 
     def load_file(self, file_path: str):
@@ -77,7 +82,7 @@ class RAM(Memory):
                 res.append(int.from_bytes(chunk, 'big'))
 
         if len(res) > self._size:
-            raise ValueError(f"program too large for RAM (program = {len(res)}, ram = {self.size})")    
+            raise ValueError(f"program too large for RAM (program = {len(res)}, ram = {self._size})")    
 
         for i, word in enumerate(res):
             self._memory[i] = word          
@@ -97,6 +102,7 @@ class RAM(Memory):
 
 
 class Bus:
+    """Class that handles read/write oeprations to ram and a singular I/O device"""
     def __init__(self, random_access_memory: Memory, max_ram_addr: int | None = None, memory_mapped_io: Memory | None = None):
         self._ram: Memory = random_access_memory 
         self._mmio: Memory | None = memory_mapped_io 
@@ -105,6 +111,7 @@ class Bus:
         self._max_ram_addr: int | None = max_ram_addr
 
     def read_addr(self, addr: int) -> int:
+        # read an address, if it exceeds the ram max addr, it is a read to the mmio device
         if self._max_ram_addr is None:
             return self._ram.read_addr(addr)
 
@@ -116,6 +123,7 @@ class Bus:
 
 
     def write_addr(self, addr: int, value: int, flags: int):
+        # write to an address, if it exceeds the ram max addr, it is a write to the mmio device
         if flags & Flags.MEM_WRITE_FLAG.value <= 0:
             return
         if self._max_ram_addr is None:
@@ -129,12 +137,14 @@ class Bus:
 
 
 class ProgramCounter:
+    """Class representing a CPU's program counter."""
     def __init__(self, starting_addr: int):
         self._next_instruction: int = starting_addr
     @property
     def next_instruction(self):
         return self._next_instruction
     def set_next_instruction(self, alu_out: int, imm: int, flags: int):
+        # incremements pc by imm if alu_out != 0, else inc pc
         if ((flags & Flags.BRANCH_FLAG.value) <= 0) or (alu_out <= 0):
             self._next_instruction = self.next_instruction + 1
         else:
@@ -147,6 +157,7 @@ class ProgramCounter:
 def alu(flags: int, rs1: int, rs2: int, imm: int):
     rd: int | None= None
 
+    # do operation based off which alu flag is set
     if flags & Flags.USE_IMM_FLAG.value:
         rs2 = imm
     if flags & Flags.ALUOP_ADD_FLAG.value:
@@ -168,11 +179,13 @@ def alu(flags: int, rs1: int, rs2: int, imm: int):
     elif flags & Flags.ALUOP_SEQ_FLAG.value:
         rd = 1 if rs1 == rs2 else 0
     else:
+        # at least 1 alu op flag must be set
         raise ValueError("")
     return rd
 
 
 class CPU:
+    """CPU class that completes one instruction per clock cycle."""
     def __init__(self, num_registers: int, bus: Bus):
         self._reg_file: RegisterFile = RegisterFile(num_registers)
         self._pc: ProgramCounter = ProgramCounter(0)
@@ -186,29 +199,30 @@ class CPU:
         return self._reg_file.read_register(register_number)
 
     def cycle(self):
-        # print(self._pc.next_instruction)
-        instr = self._bus.read_addr(self._pc.next_instruction)
+        # fetch stage
+        instr = self._bus.read_addr(self._pc.next_instruction) # read raw instruction bits from bus
 
-        # decode 
-        flags, rd_addr, rs1_addr, rs2_addr, imm =  decode_instruction(instr)
+        # decode stage
+        flags, rd_addr, rs1_addr, rs2_addr, imm =  decode_instruction(instr) # decode instruction
         if flags == 0:
+            # if no flags are set, then EOF reached ( EOF coded as no op)
             print(">Reached End of Program")
             exit()
-        rs1, rs2 = self._reg_file.read_registers(rs1_addr, rs2_addr)
-        # execute 
+        rs1, rs2 = self._reg_file.read_registers(rs1_addr, rs2_addr) # read register file
 
-        alu_out = alu(flags, rs1, rs2, imm)
+        # execute stage
+        alu_out = alu(flags, rs1, rs2, imm) # do alu calculation
 
-        # mem 
+        # memory stage
         if flags & Flags.MEM_READ_FLAG.value > 0:
-            bus_out = self._bus.read_addr(alu_out)
+            bus_out = self._bus.read_addr(alu_out) # read memory if memory read flag was set
         else:
             bus_out = 0
-        self._bus.write_addr(alu_out, rs2, flags)
+        self._bus.write_addr(alu_out, rs2, flags) # write to bus if write flag was set
 
-        # write back
-        self._reg_file.update_register(rd_addr, alu_out, bus_out, flags)
-        self._pc.set_next_instruction(alu_out, imm, flags)
+        # write back stage
+        self._reg_file.update_register(rd_addr, alu_out, bus_out, flags) # update registers if operation has a return
+        self._pc.set_next_instruction(alu_out, imm, flags) # update pc for next instruction 
 
 
 class CPUStates(Enum):
@@ -272,15 +286,15 @@ class CPUClocked:
             print(f" t0 = {t0},  t1 = {t1}, t2 = {t2}")
 
 
-
-
-
         match self._state:
+            # fetch stage
             case CPUStates.FETCH:
-                self._instr = self._bus.read_addr(self._pc.next_instruction)
+                # read raw instruction bits from memory
+                self._instr = self._bus.read_addr(self._pc.next_instruction) 
                 self._state = CPUStates.DECODE
-        # decode 
+            # decode stage
             case CPUStates.DECODE:
+                # decodes instruction for control flags, and reads register file
                 self._flags, self._rd_addr, self._rs1_addr, self._rs2_addr, self._imm =  decode_instruction(self._instr)
                 if self._flags == 0:
                     print(">Reached End of Program")
@@ -288,13 +302,15 @@ class CPUClocked:
 
                 self._rs1, self._rs2 = self._reg_file.read_registers(self._rs1_addr, self._rs2_addr)
                 self._state = CPUStates.EXECUTE
-        # execute 
+            # execute stage
             case CPUStates.EXECUTE:
+                # execute alu based on control flags
                 self._alu_out = alu(self._flags, self._rs1, self._rs2, self._imm)
 
                 self._state = CPUStates.MEM
-        # mem 
+            # memory stage
             case CPUStates.MEM:
+                # perform memory read/writes if applicable
                 if self._flags & Flags.MEM_READ_FLAG.value > 0:
                     self._bus_out = self._bus.read_addr(self._alu_out)
                 else:
@@ -302,8 +318,9 @@ class CPUClocked:
                 self._bus.write_addr(self._alu_out, self._rs2, self._flags)
                 self._state = CPUStates.WB
 
-        # write back
+            # write back stage
             case CPUStates.WB:
+                # write back to registers if applicable and update pc
                 self._reg_file.update_register(self._rd_addr, self._alu_out, self._bus_out, self._flags)
                 self._pc.set_next_instruction(self._alu_out, self._imm, self._flags)
                 self._state = CPUStates.FETCH

@@ -2,6 +2,7 @@ from enum import Enum, unique
 
 @unique
 class Instructions(Enum):
+    # Instructions support by the CPU and their respective opcodes
     NO_OP = 0b_0000_00
     # arithmetic first bit is 0, second bit is 1 if use imm
     ADD = 0b_0010_00
@@ -34,6 +35,7 @@ class Instructions(Enum):
 
 @unique
 class Flags(Enum):
+    # Flags used by the CPU
     USE_IMM_FLAG   = 0b_1000_0000_0000_0000_00
     ALUOP_ADD_FLAG = 0b_0100_0000_0000_0000_00
     ALUOP_SUB_FLAG = 0b_0010_0000_0000_0000_00
@@ -108,22 +110,31 @@ OPCODE_MASK = 0b111111
 REGISTER_MASK = 0b11111
 IMM_MASK = 0b_0111_1111_111
 IMM_SIGN_BIT_MASK = 0b_1000_0000_000
-JAL_IMM_MASK = 0b_1111_1111_1111_1111_1111_1111_1
+JAL_IMM_SIGN_BIT_MASK = 0b_1000_0000_0000_0000_0000_0000_0
+JAL_IMM_MASK = 0b_0111_1111_1111_1111_1111_1111_1
 
 
 def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
+    """Decodes raw instruction bits into the flags, registers and intermediates needed to execute the instruction"""
+
+    # decode opcode, and register addresses
     opcode = (instruction >> OPCODE_OFFSET) & OPCODE_MASK
     rd_addr = (instruction >> RD_OFFSET) & REGISTER_MASK
     rs1_addr = (instruction >> RS1_OFFSET) & REGISTER_MASK
     rs2_addr = (instruction >> RS2_OFFSET) & REGISTER_MASK
+    # convert intermediate to signed integer
     imm = (instruction >> IMM_OFFSET) & IMM_MASK
     imm -= IMM_SIGN_BIT_MASK & (instruction >> IMM_OFFSET)
+
+
+
 
     flags = 0
 
     instr = Instructions(opcode)
 
     match instr:
+        # get the flags based on hte instruction opcode
         case Instructions.ADD:
             flags = ALUOP_ADD_FLAG | REG_WRITE_FLAG
         case Instructions.SUB:
@@ -169,6 +180,11 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
         case Instructions.JAL:
             # for jal, use BEQ instruct but both registers 0 for more imm room
             flags = BRANCH_FLAG | ALUOP_SEQ_FLAG
+            
+            # JAL imm is larger so use different offsets to calculate it 
+            imm = (instruction >> JAL_IMM_OFFSET) & JAL_IMM_MASK
+            imm -= JAL_IMM_SIGN_BIT_MASK & (instruction >> JAL_IMM_OFFSET)
+            
             rs1_addr = 0 
             rs2_addr = 0 
         case _:
@@ -176,13 +192,14 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
 
     no_rd_instructions = [Instructions.SW, Instructions.BEQ, Instructions.BNE, Instructions.BGE, Instructions.BLT]
     if Instructions(opcode) in no_rd_instructions:
+            # if an instruction has no destination register, then rs1 is where rd should be, and rs2 is where rs1 should be 
             # rs2 is where rs1 is normally
             rs2_addr = rs1_addr
             # rs1 is where rd is normally
             rs1_addr = rd_addr
     return flags, rd_addr, rs1_addr, rs2_addr, imm
 
-
+# functions for construction instructions as 32bit integers
 def r_type(instr_: Instructions, rd:int, rs1: int, rs2: int) -> int:
     opcode: int = instr_.value
     instr = int(f"{rs2:06b}{rs1:06b}{rd:06b}{opcode:07b}".replace('_', ''), 2)
