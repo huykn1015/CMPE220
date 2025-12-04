@@ -16,11 +16,15 @@ ABI_NAMES = [
 # construct a lookup table that maps register name to register number
 REGISTER_LOOKUP = {name : i for i, name in enumerate(ABI_NAMES)}
 
-# 1. remove newlines and comments from each line
-# 2. identify labels and link them with the instruction
-#   - labels are anything before a colon
-def assembler_preprocess(lines: list[str]) -> list[str, list[str]]:
-    line_entries: list[str, list[str]] = []
+# add alternative r register names to lookup
+# r1 = 1, r2 = 2, r3 = 3, ... , r31 = 31
+for i in range(1, 31+1):
+    REGISTER_LOOKUP["r" + str(i)] = i
+
+# remove comments and newlines from each line
+# if resulting line is empty, remove it
+def assembler_clean(lines: list[str]) -> list[str]:
+    clean_lines = []
     for line in lines:
         # remove hashtag comments
         index = line.find("#")
@@ -28,6 +32,32 @@ def assembler_preprocess(lines: list[str]) -> list[str, list[str]]:
             line = line[:index]
         # remove extra spaces and newlines
         line = line.strip()
+        # only add non-empty lines
+        if len(line) > 0:
+            clean_lines.append(line)
+    return clean_lines
+
+def assembler_process_data(lines):
+    words: list[int] = []
+    label_lookup  = {}
+    for line in lines:
+        # identify labels
+        label_tokens = line.split(":")
+        # last token is non-label instruction
+        for i in range(len(label_tokens) - 1):
+            label = label_tokens[i].strip().upper()
+            # labels come before the words on the same line
+            label_lookup[label] = len(words)
+        words.extend(int(s) for s in label_tokens[-1].split())
+    return (words, label_lookup)
+
+
+# 1. remove newlines and comments from each line
+# 2. identify labels and link them with the instruction
+#   - labels are anything before a colon
+def assembler_preprocess(lines: list[str]) -> list[str, list[str]]:
+    line_entries: list[str, list[str]] = []
+    for line in lines:
         # identify labels
         tokens = line.split(":")
         labels = []
@@ -40,11 +70,11 @@ def assembler_preprocess(lines: list[str]) -> list[str, list[str]]:
     #  (labels that are placed after the final instruction in the assembly code)
     line_entries.append(["NO_OP", []])
 
-    if DEBUG_PRINT:
-        print("raw line entries:")
-        for entry in line_entries:
-            print(f"{entry}")
-        print()
+    # if DEBUG_PRINT:
+    #     print("raw line entries:")
+    #     for entry in line_entries:
+    #         print(f"{entry}")
+    #     print()
 
     # remove entries with empty line 
     # if removed entry has labels, transfer those labels to
@@ -63,7 +93,7 @@ def assembler_preprocess(lines: list[str]) -> list[str, list[str]]:
             orphaned_labels.extend(labels)
 
     if DEBUG_PRINT:
-        print("revised line entries:")
+        print(".text line entries:")
         for entry in revised_entries:
             print(f"{entry}")
         print()
@@ -88,7 +118,7 @@ def assembler_tokenize(line: str) -> deque[str]:
     return tokens
 
 # converts assembly instruciton to 32 bit machine code
-def assembler_parse_line(index: int, line: str, label_lookup: dict[str, int]) -> str:
+def assembler_parse_line(index: int, line: str, text_label_lookup: dict, data_label_lookup: dict) -> str:
     if DEBUG_PRINT:
         print(f"Parsing Instruction {index}: {line}")
 
@@ -113,6 +143,7 @@ def assembler_parse_line(index: int, line: str, label_lookup: dict[str, int]) ->
     # branch = 0: I-type, imm is literal integer
     # branch = 1: Branch, imm is a label and will translate to offset
     # branch = 2: Jump, imm is a label and will translate to direct address
+    # branch = 3: LW/SW, imm is either a label or literal integer
     def process_imm(branch=0):
         token = tokens.popleft()
         imm = 0
@@ -120,16 +151,24 @@ def assembler_parse_line(index: int, line: str, label_lookup: dict[str, int]) ->
             imm = int(token)
         elif branch == 1:  # branch
             label = token.upper()
-            target_index = label_lookup[label]
+            target_index = text_label_lookup[label]
             imm = target_index - index
             if DEBUG_PRINT:
                 print(f"branch offset: {imm}")
-        else:  # jump
+        elif branch == 2:  # jump
             label = token.upper()
-            target_index = label_lookup[label]
+            target_index = text_label_lookup[label]
             imm = target_index
             if DEBUG_PRINT:
                 print(f"jump target: {imm}")
+        elif branch == 3:  # LW/SW
+            # this is broken. don't use
+            t = token.upper()
+            # if label is not found in lookup, then it is a literal integer
+            if t in data_label_lookup:
+                imm = data_label_lookup[t]
+            else:
+                imm = int(t) + 1000  # don't forget offset
 
         # python can't do 2's complement so I have to do it myself
         if (imm < 0):
@@ -163,13 +202,13 @@ def assembler_parse_line(index: int, line: str, label_lookup: dict[str, int]) ->
         operand_names.extend(["rd", "rs1", "imm"])
     # SW
     elif instr_name == "SW":
-        process_reg()  # rs1
-        process_imm()  # imm
         process_reg()  # rs2
+        process_imm()  # imm
+        process_reg()  # rs1
         # need to swap imm and rs2 to comply with format
         d = binary_strings
         d[0], d[1] = d[1], d[0]
-        operand_names.extend(["rs1", "rs2", "imm"])
+        operand_names.extend(["rs2", "rs1", "imm"])
     # JAL
     elif instr_name == "JAL":
         process_imm(2)  # imm
@@ -230,37 +269,104 @@ if __name__ == "__main__":
     lines = []
     with open(src_filename, "r") as f:
         lines = f.readlines()
-    
-    line_entries = assembler_preprocess(lines)
+
+    clean_lines = assembler_clean(lines)
+
+    text_lines = []
+    data_lines = []
+    section = text_lines
+    for line in clean_lines:
+        if line == ".data":
+            section = data_lines
+        elif line == ".text":
+            section = text_lines
+        else:
+            section.append(line)
+
+    if (DEBUG_PRINT):
+        print(".data lines:")
+        for line in data_lines:
+            print("\t" + line)
+        print(".text lines:")
+        for line in text_lines:
+            print("\t" + line)
+        print()
+       
+    # process the data lines first
+    data_words, data_label_lookup = assembler_process_data(data_lines)
+
+    if (DEBUG_PRINT):
+        print(".data words: " + str(data_words))
+        print(".data label lookup:" + str(data_label_lookup))
+        print()
+
+
+    line_entries = assembler_preprocess(text_lines)
     # extract lines from first column of line_entries
     # and setup a lookup that maps label to current line number
     lines = []
-    label_lookup: dict[str, int] = {}
+    text_label_lookup: dict[str, int] = {}
     for i, (line, labels) in enumerate(line_entries):
         for label in labels:
-            label_lookup[label] = i
+            text_label_lookup[label] = i
         lines.append(line)
 
     if DEBUG_PRINT:
-        print(f"label lookup: {label_lookup}\n")
+        print(f".text label lookup: {text_label_lookup}\n")
 
     machine_codes = []
     for index, line in enumerate(lines):
-        machine_codes.append(assembler_parse_line(index, line, label_lookup))
+        machine_codes.append(assembler_parse_line(index, line, text_label_lookup, data_label_lookup))
 
-    byte_array = []
+    text_byte_array = []
     for word in machine_codes:
-        byte_array.append(int(word[0:8], 2))
-        byte_array.append(int(word[8:16], 2))
-        byte_array.append(int(word[16:24], 2))
-        byte_array.append(int(word[24:32], 2))
+        text_byte_array.append(int(word[0:8], 2))
+        text_byte_array.append(int(word[8:16], 2))
+        text_byte_array.append(int(word[16:24], 2))
+        text_byte_array.append(int(word[24:32], 2))
+
+    text_zero_array = []
+    if (len(text_byte_array) < 1000 * 4):
+        text_zero_array = [0] * (1000 * 4 - len(text_byte_array))
+
+    data_byte_array = []
+    for word in data_words:
+        word_bin = "{0:b}".format(word).rjust(32, "0")
+        data_byte_array.append(int(word_bin[0:8], 2))
+        data_byte_array.append(int(word_bin[8:16], 2))
+        data_byte_array.append(int(word_bin[16:24], 2))
+        data_byte_array.append(int(word_bin[24:32], 2))
+
+    data_zero_array = []
+    if (len(data_zero_array) < 1000 * 4):
+        data_zero_array = [0] * (1000 * 4 - len(data_byte_array))
 
     if (DEBUG_PRINT):
-        print(f"bytes to be written into binary file:\n{byte_array}")
+        print("Binary File Output:")
+
+        print(".text section [0000 - 0999]")
+        address = 0
+        for i in range(0, len(text_byte_array), 4):
+            line = "\t" + str(address).rjust(4, "0") + ": "
+            line += " ".join(str(n).rjust(3) for n in text_byte_array[i:i+4])
+            address += 1
+            print(line)
+        print("\t------------------------")
+        print(f"\t{address:04} to 0999: all zeroes")
+
+        print(".data section [1000 - 1999]")
+        address = 1000
+        for i in range(0, len(data_byte_array), 4):
+            line = "\t" + str(address).rjust(4, "0") + ": "
+            line += " ".join(str(n).rjust(3) for n in data_byte_array[i:i+4])
+            address += 1
+            print(line)
+        print("\t------------------------")
+        print(f"\t{address:04} to 1999: all zeroes")
 
     if dest_filename:
         with open(dest_filename, "wb") as f:
-            f.write(bytes(byte_array))
-
-
-
+            f.write(bytes(text_byte_array))
+            f.write(bytes(text_zero_array))
+            f.write(bytes(data_byte_array))
+            f.write(bytes(data_zero_array))
