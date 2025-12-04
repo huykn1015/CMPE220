@@ -114,12 +114,14 @@ class Bus:
     def read_addr(self, addr: int) -> int:
         # read an address, if it exceeds the ram max addr, it is a read to the mmio device
         if self._max_ram_addr is None:
+            print(f"bus read, addr: {addr} [{self._ram.read_addr(addr)}]")
             return self._ram.read_addr(addr)
 
         if addr > self._max_ram_addr:
             if self._mmio is None:
                 raise ValueError("Address out of bounds")
             return self._mmio.read_addr(addr - self._max_ram_addr)
+        # print(f"bus read, addr: {addr} [{self._ram.read_addr(addr)}]")
         return self._ram.read_addr(addr)
 
 
@@ -288,7 +290,7 @@ class CPUClocked:
 
             reg = self._reg_file.dump_regs()
             t0, t1, t2 = reg[5], reg[6], reg[7]
-            print(f" t0 = {t0},  t1 = {t1}, t2 = {t2}")
+            print(f" r1 = {reg[1]},  r2 = {reg[2]}, r30 = {reg[30]}, r31 = {reg[31]}")
 
 
         match self._state:
@@ -317,6 +319,7 @@ class CPUClocked:
             case CPUStates.MEM:
                 # perform memory read/writes if applicable
                 if self._flags & Flags.MEM_READ_FLAG.value > 0:
+                    
                     self._bus_out = self._bus.read_addr(self._alu_out)
                 else:
                     self._bus_out = 0
@@ -326,8 +329,9 @@ class CPUClocked:
             # write back stage
             case CPUStates.WB:
                 # write back to registers if applicable and update pc
-                if self._rd_addr == PC_REGISTER and ((self._flags & Flags.BRANCH_FLAG.value) > 0):
-                    self._pc.write_next_instruction(self._reg_file.read_register(self._alu_out))
+                if self._rd_addr == PC_REGISTER:
+                    print(f'write to pc reg {self._bus_out}')
+                    self._pc.write_next_instruction(self._bus_out)
                 elif ((self._flags & Flags.JAL_FLAG.value) > 0):
                     self._reg_file.write_register(RETURN_ADDRESS_REGITSTER, self._pc.next_instruction + 1)
                     self._pc.set_next_instruction(self._alu_out, self._imm, self._flags)

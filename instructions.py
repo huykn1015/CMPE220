@@ -50,7 +50,7 @@ class Flags(Enum):
     MEM_WRITE_FLAG = 0b_0000_0000_0001_0000_00
     MEM_READ_FLAG  = 0b_0000_0000_0000_0000_01
 
-    BRANCH_EQ_FLAG = 0b_0000_0000_0000_1000_00
+    JAL_FLAG = 0b_0000_0000_0000_1000_00
     BRANCH_NE_FLAG = 0b_0000_0000_0000_0100_00
     BRANCH_GE_FLAG = 0b_0000_0000_0000_0010_00
     BRANCH_LT_FLAG = 0b_0000_0000_0000_0001_00
@@ -74,7 +74,7 @@ MEM_WRITE_FLAG = Flags.MEM_WRITE_FLAG.value
 
 BRANCH_FLAG = Flags.BRANCH_FLAG.value
 
-BRANCH_EQ_FLAG = Flags.BRANCH_EQ_FLAG.value
+JAL_FLAG = Flags.JAL_FLAG.value
 BRANCH_NE_FLAG = Flags.BRANCH_NE_FLAG.value
 BRANCH_GE_FLAG = Flags.BRANCH_GE_FLAG.value
 BRANCH_LT_FLAG = Flags.BRANCH_LT_FLAG.value
@@ -179,18 +179,23 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
 
         case Instructions.JAL:
             # for jal, use BEQ instruct but both registers 0 for more imm room
-            flags = BRANCH_FLAG | ALUOP_SEQ_FLAG
+            flags = BRANCH_FLAG | ALUOP_SEQ_FLAG | JAL_FLAG
             
             # JAL imm is larger so use different offsets to calculate it 
             imm = (instruction >> JAL_IMM_OFFSET) & JAL_IMM_MASK
-            imm -= JAL_IMM_SIGN_BIT_MASK & (instruction >> JAL_IMM_OFFSET)
-            
+            imm -= JAL_IMM_SIGN_BIT_MASK & (instruction >> (JAL_IMM_OFFSET - 1))
+            # print(f"{instruction >> JAL_IMM_OFFSET:24b}")
+            # print(f"{JAL_IMM_SIGN_BIT_MASK:24b}")
+            # print(f"{instruction >> JAL_IMM_OFFSET}")
+            # print(f"{JAL_IMM_SIGN_BIT_MASK & (instruction >> (JAL_IMM_OFFSET - 1))}")
+            # print(f"jal imm: {imm}")        
             rs1_addr = 0 
             rs2_addr = 0 
         case _:
             flags = 0
 
     no_rd_instructions = [Instructions.SW, Instructions.BEQ, Instructions.BNE, Instructions.BGE, Instructions.BLT]
+    # print(Instructions(opcode))
     if Instructions(opcode) in no_rd_instructions:
             # if an instruction has no destination register, then rs1 is where rd should be, and rs2 is where rs1 should be 
             # rs2 is where rs1 is normally
@@ -226,4 +231,8 @@ def lw(rd: int, rs1: int, imm: int) -> int:
     instr = int(f"{imm & 0x7FF:11b}{rs1:06b}{rd:06b}{opcode:07b}".replace('_', ''), 2)
     return instr
 
+def jal(imm: int) -> int:
+    opcode = Instructions.JAL.value
+    instr = int(f"{imm & 0xFFFFFF:24b}{opcode:07b}".replace('_', ''), 2)
+    return instr
 
