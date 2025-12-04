@@ -1,6 +1,7 @@
 .data   # useless comment
     cat:1 2 3 4 5 6    7 8 9 10 #asdfsf
     crow:bird:1000 2000 3000
+    cow: 4000000
     dog:
 .text  # another useless comment
     # please ignore this comment
@@ -16,3 +17,7 @@
     beq zero, zero, LABEL3
     jal LABEL1
     jal LABEL4
+
+    addi s0, zero, cat
+    addi s1, zero, crow
+    addi s1, zero, cow

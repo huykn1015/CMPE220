@@ -140,15 +140,19 @@ def assembler_parse_line(index: int, line: str, text_label_lookup: dict, data_la
         reg_num = REGISTER_LOOKUP[reg_name]
         binary_strings.appendleft(f"{reg_num:06b}")
 
-    # branch = 0: I-type, imm is literal integer
+    # branch = 0: I-type, imm is either a .data variable or literal integer
     # branch = 1: Branch, imm is a label and will translate to offset
     # branch = 2: Jump, imm is a label and will translate to direct address
-    # branch = 3: LW/SW, imm is either a label or literal integer
     def process_imm(branch=0):
         token = tokens.popleft()
         imm = 0
         if branch == 0:  # I-Type
-            imm = int(token)
+            t = token.upper()
+            if t in data_label_lookup:
+                imm = int(data_label_lookup[t]) + 1000  # data offset
+                print(f"variable address: {imm}")
+            else:
+                imm = int(token)
         elif branch == 1:  # branch
             label = token.upper()
             target_index = text_label_lookup[label]
@@ -161,14 +165,6 @@ def assembler_parse_line(index: int, line: str, text_label_lookup: dict, data_la
             imm = target_index
             if DEBUG_PRINT:
                 print(f"jump target: {imm}")
-        elif branch == 3:  # LW/SW
-            # this is broken. don't use
-            t = token.upper()
-            # if label is not found in lookup, then it is a literal integer
-            if t in data_label_lookup:
-                imm = data_label_lookup[t]
-            else:
-                imm = int(t) + 1000  # don't forget offset
 
         # python can't do 2's complement so I have to do it myself
         if (imm < 0):
