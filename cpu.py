@@ -69,8 +69,9 @@ class STDOut(Memory):
 
 class RAM(Memory):
     """Class representing Random Access Memory"""
-    def __init__(self, size: int):
+    def __init__(self, size: int, stack_addr: int | None = None):
         self._size: int = size
+        self._stack_addr: int | None = stack_addr
         self._memory: list[int] = [0] * size
 
     def load_file(self, file_path: str):
@@ -81,7 +82,8 @@ class RAM(Memory):
                 if len(chunk) < 4:
                     break
                 res.append(int.from_bytes(chunk, 'big'))
-
+        if self._stack_addr is not None and len(res) > self._stack_addr:
+            raise ValueError(f"program too large for RAM (program = {len(res)}, ram = {self._stack_addr})")    
         if len(res) > self._size:
             raise ValueError(f"program too large for RAM (program = {len(res)}, ram = {self._size})")    
 
