@@ -195,7 +195,7 @@ def decode_instruction(instruction: int) -> tuple[int, int, int, int, int]:
             flags = 0
 
     no_rd_instructions = [Instructions.SW, Instructions.BEQ, Instructions.BNE, Instructions.BGE, Instructions.BLT]
-    # print(Instructions(opcode))
+    print(Instructions(opcode))
     if Instructions(opcode) in no_rd_instructions:
             # if an instruction has no destination register, then rs1 is where rd should be, and rs2 is where rs1 should be 
             # rs2 is where rs1 is normally

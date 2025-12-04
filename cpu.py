@@ -116,7 +116,7 @@ class Bus:
     def read_addr(self, addr: int) -> int:
         # read an address, if it exceeds the ram max addr, it is a read to the mmio device
         if self._max_ram_addr is None:
-            print(f"bus read, addr: {addr} [{self._ram.read_addr(addr)}]")
+            # print(f"bus read, addr: {addr} [{self._ram.read_addr(addr)}]")
             return self._ram.read_addr(addr)
 
         if addr > self._max_ram_addr:
@@ -333,7 +333,8 @@ class CPUClocked:
                 # write back to registers if applicable and update pc
                 if self._rd_addr == PC_REGISTER:
                     print(f'write to pc reg {self._bus_out}')
-                    self._pc.write_next_instruction(self._bus_out)
+                    write_value = self._bus_out if self._flags & Flags.MEM_READ_FLAG.value > 0 else self._alu_out
+                    self._pc.write_next_instruction(write_value)
                 elif ((self._flags & Flags.JAL_FLAG.value) > 0):
                     self._reg_file.write_register(RETURN_ADDRESS_REGITSTER, self._pc.next_instruction + 1)
                     self._pc.set_next_instruction(self._alu_out, self._imm, self._flags)
