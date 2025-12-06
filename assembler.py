@@ -141,8 +141,8 @@ def assembler_parse_line(index: int, line: str, text_label_lookup: dict, data_la
         binary_strings.appendleft(f"{reg_num:06b}")
 
     # branch = 0: I-type, imm is either a .data variable or literal integer
-    # branch = 1: Branch, imm is a label and will translate to offset
-    # branch = 2: Jump, imm is a label and will translate to direct address
+    # branch = 1 or 2: Branch/Jump, imm is a label and will translate to offset
+    # NOTE: unlike the MIPS jump, the RISCV jump does relative addressing
     def process_imm(branch=0):
         token = tokens.popleft()
         imm = 0
@@ -153,18 +153,15 @@ def assembler_parse_line(index: int, line: str, text_label_lookup: dict, data_la
                 print(f"variable address: {imm}")
             else:
                 imm = int(token)
-        elif branch == 1:  # branch
+        elif branch == 1 or branch == 2:  # branch/jump
             label = token.upper()
             target_index = text_label_lookup[label]
             imm = target_index - index
             if DEBUG_PRINT:
-                print(f"branch offset: {imm}")
-        elif branch == 2:  # jump
-            label = token.upper()
-            target_index = text_label_lookup[label]
-            imm = target_index
-            if DEBUG_PRINT:
-                print(f"jump target: {imm}")
+                if branch == 1:
+                    print(f"branch offset: {imm}")
+                else:
+                    print(f"jump offset: {imm}")
 
         # python can't do 2's complement so I have to do it myself
         if (imm < 0):
