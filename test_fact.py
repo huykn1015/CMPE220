@@ -45,6 +45,13 @@ if __name__ == '__main__':
                     instr_4, instr_5, instr_6, instr_7, instr_8, 
                     instr_9, instr_10, instr_11, instr_12, instr_13, instr_14,
                     instr_15, instr_16, instr_17]
+
+
+    with open("fact.bin", "wb") as f:
+        for x in instructions:
+            _ = f.write(x.to_bytes(4, byteorder="big", signed=False))
+
+    exit()
     for i, instr in enumerate(instructions):
         ram.write_addr(i, instr)
 

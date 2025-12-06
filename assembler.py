@@ -246,6 +246,7 @@ def assembler_parse_line(index: int, line: str, text_label_lookup: dict, data_la
 
     if DEBUG_PRINT:
         print(f"Machine Code: {result}\n")
+        print(f"Machine Code: 0x{int(result, 2):08X}\n")
 
     return result
 

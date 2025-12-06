@@ -116,14 +116,14 @@ class Bus:
     def read_addr(self, addr: int) -> int:
         # read an address, if it exceeds the ram max addr, it is a read to the mmio device
         if self._max_ram_addr is None:
-            # print(f"bus read, addr: {addr} [{self._ram.read_addr(addr)}]")
+            print(f"bus read, addr: {addr} [{self._ram.read_addr(addr)}]")
             return self._ram.read_addr(addr)
 
         if addr > self._max_ram_addr:
             if self._mmio is None:
                 raise ValueError("Address out of bounds")
             return self._mmio.read_addr(addr - self._max_ram_addr)
-        # print(f"bus read, addr: {addr} [{self._ram.read_addr(addr)}]")
+        print(f"bus read, addr: {addr} [{self._ram.read_addr(addr)}]")
         return self._ram.read_addr(addr)
 
 
@@ -132,12 +132,14 @@ class Bus:
         if flags & Flags.MEM_WRITE_FLAG.value <= 0:
             return
         if self._max_ram_addr is None:
+            print(f"bus write, addr: {addr} [value]")
             return self._ram.write_addr(addr, value)
 
         if addr >= self._max_ram_addr:
             if self._mmio is None:
                 raise ValueError("Address out of bounds")
             return self._mmio.write_addr(addr - self._max_ram_addr, value)
+        print(f"bus write, addr: {addr} [value]")
         return self._ram.write_addr(addr, value)
 
 
@@ -331,9 +333,9 @@ class CPUClocked:
             # write back stage
             case CPUStates.WB:
                 # write back to registers if applicable and update pc
-                if self._rd_addr == PC_REGISTER:
-                    print(f'write to pc reg {self._bus_out}')
+                if (self._rd_addr == PC_REGISTER) & ((self._flags & Flags.REG_WRITE_FLAG.value) > 0):
                     write_value = self._bus_out if self._flags & Flags.MEM_READ_FLAG.value > 0 else self._alu_out
+                    print(f'write to reg {self._rd_addr}: {write_value}')
                     self._pc.write_next_instruction(write_value)
                 elif ((self._flags & Flags.JAL_FLAG.value) > 0):
                     self._reg_file.write_register(RETURN_ADDRESS_REGITSTER, self._pc.next_instruction + 1)
@@ -341,6 +343,7 @@ class CPUClocked:
                 else:
                     self._reg_file.update_register(self._rd_addr, self._alu_out, self._bus_out, self._flags)
                     self._pc.set_next_instruction(self._alu_out, self._imm, self._flags)
+                print('next instruction', self._pc.next_instruction)
                 self._state = CPUStates.FETCH
             case _:
                 return CPUStates.STOPPED.value
